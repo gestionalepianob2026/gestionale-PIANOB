@@ -1,0 +1,53 @@
+// Schema dati gestionale PIANO B
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("CREW") // CREW | ADMIN
+  createdAt DateTime @default(now())
+  bolle     Bolla[]
+}
+
+model Product {
+  id         String   @id @default(cuid())
+  prodotto   String
+  categoria  String   // Vini | Bollicine | Bevande | Rum | Whisky | Alimenti ...
+  tipologia  String?  // solo vini: Rosso | Bianco | Bollicina | Champagne ...
+  zona       String?  // solo vini: regione/area
+  fornitore  String?
+  prezzoUnit Float    @default(0) // imponibile unitario (netto IVA)
+  ivaRate    Float    @default(22) // aliquota IVA %
+  quantita   Float    @default(0) // giacenza in magazzino
+  sogliaMin  Float    @default(0) // soglia sotto scorta
+  bollaId    String?
+  bolla      Bolla?   @relation(fields: [bollaId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([categoria])
+  @@index([prodotto])
+}
+
+model Bolla {
+  id        String    @id @default(cuid())
+  numero    String?
+  fornitore String?
+  data      DateTime?
+  totale    Float     @default(0)
+  imagePath String?
+  rawJson   String?   // risposta grezza AI
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id])
+  createdAt DateTime  @default(now())
+  products  Product[]
+}

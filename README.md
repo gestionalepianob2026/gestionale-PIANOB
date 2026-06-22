@@ -1,36 +1,114 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PIANO B — Gestionale
 
-## Getting Started
+Gestionale di magazzino per il locale **PIANO B**: inventario di vini, bevande e
+alimenti, dashboard, inserimento manuale e **scansione delle bolle con AI**.
 
-First, run the development server:
+Costruito con Next.js 16, React 19, Tailwind CSS v4, Prisma e l'API Claude
+(Anthropic) per la lettura automatica delle bolle.
+
+---
+
+## Avvio rapido (sviluppo)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd gestionale
+npm install
+npm run db:push     # crea il database SQLite
+npm run db:seed     # importa gli articoli dall'Excel + crea gli utenti
+npm run dev         # avvia su http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Credenziali di accesso
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Ruolo | Email             | Password     |
+| ----- | ----------------- | ------------ |
+| Admin | admin@pianob.it   | pianob2026   |
+| Crew  | marco@pianob.it   | pianob2026   |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+> Cambia le password in produzione: modifica `prisma/seed.mjs` ed esegui di nuovo
+> `npm run db:seed`, oppure aggiungi una pagina di gestione utenti.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Funzionalità
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Login** con sessione sicura (cookie firmato JWT).
+- **Dashboard**: valore magazzino, n° articoli, articoli sotto scorta, ultima
+  bolla, distribuzione del valore per categoria, lista "da riordinare".
+- **Inventario**: ricerca, filtri per categoria e "sotto scorta", modifica
+  rapida della giacenza, prezzi, fornitore e soglia minima, eliminazione.
+- **Aggiungi**: inserimento manuale di un articolo.
+- **Scansiona bolla (AI)**: carichi/scatti la foto di una bolla, Claude estrae
+  numero documento, fornitore e righe prodotto; tu correggi e confermi.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+I 1170 articoli reali sono importati da `Inventario 30 Aprile.xlsx`
+(vini, bevande, distillati) tramite `prisma/seed-data.json`.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Attivare la scansione AI
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+La funzione è già pronta; va solo fornita la chiave API:
+
+1. Crea una chiave su <https://console.anthropic.com/>.
+2. Apri il file `.env` e imposta:
+   ```env
+   ANTHROPIC_API_KEY="sk-ant-..."
+   ANTHROPIC_MODEL="claude-opus-4-8"
+   ```
+3. Riavvia il server.
+
+Finché la chiave è vuota, la pagina "Scansiona bolla" funziona comunque: avvisa
+che l'AI non è attiva e permette l'inserimento manuale delle righe.
+
+---
+
+## Pubblicazione online (telefono + PC)
+
+Il database di default è **SQLite** (file `prisma/dev.db`), ideale per lo
+sviluppo e per un PC del locale. Per l'accesso online da più dispositivi conviene
+un database gestito (es. **Postgres** su Neon/Supabase) e l'hosting su Vercel,
+Railway o un VPS:
+
+1. In `prisma/schema.prisma` cambia `provider = "sqlite"` in `"postgresql"`.
+2. Imposta `DATABASE_URL` con la stringa di connessione Postgres.
+3. `npm run db:push && npm run db:seed`.
+4. Configura su hosting le variabili `DATABASE_URL`, `AUTH_SECRET` (un valore
+   lungo e casuale) e, se vuoi l'AI, `ANTHROPIC_API_KEY`.
+5. `npm run build && npm run start`.
+
+---
+
+## Comandi utili
+
+| Comando             | Descrizione                                        |
+| ------------------- | -------------------------------------------------- |
+| `npm run dev`       | Server di sviluppo                                 |
+| `npm run build`     | Build di produzione                                |
+| `npm run start`     | Avvia la build di produzione                       |
+| `npm run db:seed`   | Reimporta articoli e utenti                        |
+| `npm run db:reset`  | Azzera e ricrea il database (cancella i dati)      |
+| `npm run db:studio` | Interfaccia visuale al database (Prisma Studio)    |
+
+---
+
+## Struttura
+
+```
+src/
+  app/
+    login/                  pagina di accesso
+    (app)/                  area protetta (dashboard, inventario, aggiungi, scansiona)
+    api/
+      auth/                 login / logout
+      products/             CRUD articoli
+      scan/                 analisi AI della bolla
+      bolle/                conferma e salvataggio bolla
+  components/               Logo, icone, AppShell (sidebar + nav mobile)
+  lib/                      prisma, auth (sessioni), format (calcoli/euro)
+  proxy.ts                  protezione delle route (ex middleware)
+prisma/
+  schema.prisma            modello dati (User, Product, Bolla)
+  seed.mjs                 importazione dati
+  seed-data.json           articoli estratti dall'Excel
+```
