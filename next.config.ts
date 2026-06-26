@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
     "192.168.56.1",
     "localhost",
     "127.0.0.1",
+    "dog-necklace-orleans-accurately.trycloudflare.com",
   ],
 };
 

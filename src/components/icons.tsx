@@ -113,6 +113,37 @@ export const IconDoc = (p: P) => (
   </svg>
 );
 
+export const IconClipboard = (p: P) => (
+  <svg {...base} {...p}>
+    <rect x="5" y="4" width="14" height="18" rx="2" />
+    <path d="M9 4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1H9V4Z" />
+    <path d="m9 13 2 2 4-4" />
+  </svg>
+);
+
+export const IconChart = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M3 3v18h18" />
+    <path d="M7 15v2M12 11v6M17 7v10" />
+  </svg>
+);
+
+export const IconTrend = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="m3 17 6-6 4 4 8-8" />
+    <path d="M17 7h4v4" />
+  </svg>
+);
+
+export const IconTruck = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M3 6a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v9H3V6Z" />
+    <path d="M15 8h3l3 3v4h-6V8Z" />
+    <circle cx="7" cy="18" r="1.6" />
+    <circle cx="17" cy="18" r="1.6" />
+  </svg>
+);
+
 export const IconSpinner = (p: P) => (
   <svg {...base} {...p} className={`animate-spin ${p.className ?? ""}`}>
     <path d="M21 12a9 9 0 1 1-6.2-8.5" />

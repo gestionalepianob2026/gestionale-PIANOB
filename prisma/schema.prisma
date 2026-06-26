@@ -9,13 +9,14 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
+  id        String      @id @default(cuid())
+  email     String      @unique
   password  String
   name      String
-  role      String   @default("CREW") // CREW | ADMIN
-  createdAt DateTime @default(now())
+  role      String      @default("CREW") // CREW | ADMIN
+  createdAt DateTime    @default(now())
   bolle     Bolla[]
+  movimenti Movimento[]
 }
 
 model Product {
@@ -31,11 +32,25 @@ model Product {
   sogliaMin  Float    @default(0) // soglia sotto scorta
   bollaId    String?
   bolla      Bolla?   @relation(fields: [bollaId], references: [id])
+  movimenti  Movimento[]
+  aliases    Alias[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   @@index([categoria])
   @@index([prodotto])
+}
+
+// Soprannome/abbreviazione usato dai dipendenti nei messaggi (es. "san pell")
+// mappato al prodotto reale. Appreso alla prima conferma, poi riconosciuto da solo.
+model Alias {
+  id        String   @id @default(cuid())
+  termine   String   @unique // soprannome normalizzato (minuscolo, spazi singoli)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  usi       Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Bolla {
@@ -50,4 +65,24 @@ model Bolla {
   user      User?     @relation(fields: [userId], references: [id])
   createdAt DateTime  @default(now())
   products  Product[]
+}
+
+// Movimento di magazzino: carico (rifornimento), scarico (consumo a fine turno)
+// o rettifica (conteggio fisico). Lo storico alimenta le statistiche dei consumi.
+model Movimento {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tipo      String   // CARICO | SCARICO | RETTIFICA
+  quantita  Float    // magnitudine del movimento (sempre positiva)
+  qtaPrima  Float    // giacenza prima del movimento
+  qtaDopo   Float    // giacenza dopo il movimento
+  note      String?
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@index([tipo])
+  @@index([createdAt])
 }

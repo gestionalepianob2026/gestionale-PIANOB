@@ -2,7 +2,15 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { fmtEur, fmtNum, valoreRiga, isLow } from "@/lib/format";
-import { IconScan, IconAlert, IconBox, IconDoc, IconChevron } from "@/components/icons";
+import {
+  IconScan,
+  IconAlert,
+  IconBox,
+  IconDoc,
+  IconChevron,
+  IconClipboard,
+  IconChart,
+} from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -212,16 +220,28 @@ export default async function DashboardPage() {
       {/* Scorciatoie */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <ShortcutCard
-          href="/inventario"
-          icon={<IconBox width={20} height={20} />}
-          title="Inventario"
-          desc={`${stats.nProd} articoli · ${fmtEur(stats.vTot)}`}
+          href="/giacenza"
+          icon={<IconClipboard width={20} height={20} />}
+          title="Consumi"
+          desc="Togli i prodotti usati o incolla il messaggio"
         />
         <ShortcutCard
           href="/scansiona"
           icon={<IconDoc width={20} height={20} />}
           title="Scansiona bolla"
           desc="Carica una foto e compila in automatico"
+        />
+        <ShortcutCard
+          href="/inventario"
+          icon={<IconBox width={20} height={20} />}
+          title="Inventario"
+          desc={`${stats.nProd} articoli · ${fmtEur(stats.vTot)}`}
+        />
+        <ShortcutCard
+          href="/statistiche"
+          icon={<IconChart width={20} height={20} />}
+          title="Statistiche"
+          desc="Consumi, acquisti e andamento"
         />
       </div>
     </div>

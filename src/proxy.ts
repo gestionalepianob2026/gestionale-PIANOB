@@ -11,8 +11,11 @@ export async function proxy(request: NextRequest) {
 
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
+  console.log(`[proxy] path: ${pathname}, hasToken: ${!!token}, hasSession: ${!!session}`);
+
   // Utente non autenticato che prova ad accedere a pagina protetta -> login
   if (!session && !isPublic) {
+    console.log(`[proxy] REDIRECTING TO LOGIN (session missing)`);
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
@@ -21,6 +24,7 @@ export async function proxy(request: NextRequest) {
 
   // Utente già autenticato che apre /login -> dashboard
   if (session && isPublic) {
+    console.log(`[proxy] REDIRECTING TO DASHBOARD (already logged in)`);
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";

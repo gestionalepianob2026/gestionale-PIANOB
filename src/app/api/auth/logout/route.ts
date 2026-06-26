@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
-import { sessionCookieOptions } from "@/lib/auth";
+import { sessionCookie } from "@/lib/auth";
 
-export async function POST() {
+export async function POST(request: Request) {
+  const isHttps =
+    request.headers.get("x-forwarded-proto") === "https" ||
+    request.url.startsWith("https");
   const res = NextResponse.json({ ok: true });
-  res.cookies.set({ ...sessionCookieOptions, value: "", maxAge: 0 });
+  res.cookies.set(sessionCookie("", isHttps, 0));
   return res;
 }

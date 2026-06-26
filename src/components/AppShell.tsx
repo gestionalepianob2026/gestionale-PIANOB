@@ -9,6 +9,8 @@ import {
   IconBox,
   IconPlus,
   IconScan,
+  IconChart,
+  IconClipboard,
   IconLogout,
 } from "@/components/icons";
 import type { SessionUser } from "@/lib/auth";
@@ -16,6 +18,8 @@ import type { SessionUser } from "@/lib/auth";
 const NAV = [
   { href: "/", label: "Dashboard", icon: IconDashboard, exact: true },
   { href: "/inventario", label: "Inventario", icon: IconBox },
+  { href: "/giacenza", label: "Consumi", icon: IconClipboard },
+  { href: "/statistiche", label: "Statistiche", icon: IconChart },
   { href: "/aggiungi", label: "Aggiungi", icon: IconPlus },
   { href: "/scansiona", label: "Scansiona bolla", icon: IconScan },
 ];
@@ -23,6 +27,7 @@ const NAV = [
 const MOBILE = [
   { href: "/", label: "Home", icon: IconDashboard, exact: true },
   { href: "/inventario", label: "Inventario", icon: IconBox },
+  { href: "/giacenza", label: "Consumi", icon: IconClipboard },
   { href: "/scansiona", label: "Scansiona", icon: IconScan },
   { href: "/aggiungi", label: "Aggiungi", icon: IconPlus },
 ];
@@ -125,7 +130,7 @@ export function AppShell({
       </main>
 
       {/* Bottom nav mobile */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-white/95 backdrop-blur lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-line bg-white/95 backdrop-blur lg:hidden">
         {MOBILE.map((item) => {
           const active = isActive(item.href, item.exact);
           const Icon = item.icon;

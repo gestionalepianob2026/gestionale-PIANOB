@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { signSession, sessionCookieOptions } from "@/lib/auth";
+import { signSession, sessionCookie } from "@/lib/auth";
 
 export async function POST(request: Request) {
   let body: { email?: string; password?: string };
@@ -36,9 +36,15 @@ export async function POST(request: Request) {
     role: user.role,
   });
 
+  const isHttps =
+    request.headers.get("x-forwarded-proto") === "https" ||
+    request.url.startsWith("https");
+
   const res = NextResponse.json({
     user: { name: user.name, role: user.role, email: user.email },
   });
-  res.cookies.set({ ...sessionCookieOptions, value: token });
+
+  res.cookies.set(sessionCookie(token, isHttps));
+
   return res;
 }
