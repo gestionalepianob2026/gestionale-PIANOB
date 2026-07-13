@@ -1,0 +1,24 @@
+# Configurazione deploy Render per il gestionale PIANO B.
+# Render legge questo file e crea il web service automaticamente.
+services:
+  - type: web
+    name: gestionale-piano-b
+    runtime: node
+    plan: free
+    region: frankfurt # data center più vicino all'Italia = più veloce
+    # Genera il client Prisma, sincronizza lo schema sul DB, poi builda Next.
+    buildCommand: npm install && npx prisma db push && npm run build
+    startCommand: npm run start
+    healthCheckPath: /login
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      # I valori segreti si inseriscono a mano nella dashboard Render (sync:false).
+      - key: DATABASE_URL
+        sync: false
+      - key: AUTH_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        sync: false

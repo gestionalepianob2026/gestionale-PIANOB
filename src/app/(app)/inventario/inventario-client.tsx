@@ -17,10 +17,13 @@ import {
   IconScan,
   IconClose,
   IconAlert,
+  IconDownload,
 } from "@/components/icons";
 import { ProductDrawer } from "./product-drawer";
 
 type Cat = { name: string; count: number };
+
+const PAGE = 200; // quanti articoli mostrare per volta
 
 export function InventarioClient({
   initialProducts,
@@ -35,6 +38,16 @@ export function InventarioClient({
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [lowOnly, setLowOnly] = useState(params.get("low") === "1");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [visible, setVisible] = useState(PAGE);
+
+  // Reset alla prima "pagina" quando cambiano ricerca o filtri
+  // (pattern React: aggiorna lo stato durante il render, senza effect).
+  const filterKey = `${search}|${activeCat ?? ""}|${lowOnly}`;
+  const [prevKey, setPrevKey] = useState(filterKey);
+  if (filterKey !== prevKey) {
+    setPrevKey(filterKey);
+    setVisible(PAGE);
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -80,7 +93,14 @@ export function InventarioClient({
             {filtered.length} articoli · {fmtEur(totValue)} valore
           </p>
         </div>
-        <div className="flex gap-2.5">
+        <div className="flex flex-wrap gap-2.5">
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- endpoint di download, non una pagina */}
+          <a
+            href="/api/products/export"
+            className="flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-[13px] font-semibold shadow-[0_1px_2px_rgba(16,24,40,.04)] transition hover:border-ink/20"
+          >
+            <IconDownload width={17} height={17} /> Esporta CSV
+          </a>
           <Link
             href="/aggiungi"
             className="flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-[13px] font-semibold shadow-[0_1px_2px_rgba(16,24,40,.04)] transition hover:border-ink/20"
@@ -160,7 +180,7 @@ export function InventarioClient({
             </tr>
           </thead>
           <tbody>
-            {filtered.slice(0, 400).map((p) => {
+            {filtered.slice(0, visible).map((p) => {
               const low = isLow(p);
               return (
                 <tr
@@ -196,17 +216,12 @@ export function InventarioClient({
             })}
           </tbody>
         </table>
-        {filtered.length > 400 && (
-          <p className="border-t border-line2 px-4 py-3 text-center text-[12px] text-muted2">
-            Mostrati i primi 400 risultati — affina la ricerca per vederne altri.
-          </p>
-        )}
         {filtered.length === 0 && <EmptyRow />}
       </div>
 
       {/* Lista mobile */}
       <div className="flex flex-col gap-2.5 md:hidden">
-        {filtered.slice(0, 200).map((p) => {
+        {filtered.slice(0, visible).map((p) => {
           const low = isLow(p);
           return (
             <button
@@ -245,6 +260,21 @@ export function InventarioClient({
           </div>
         )}
       </div>
+
+      {/* Mostra altro */}
+      {filtered.length > visible && (
+        <div className="flex flex-col items-center gap-2 pt-1">
+          <button
+            onClick={() => setVisible((v) => v + PAGE)}
+            className="rounded-xl border border-line bg-white px-5 py-2.5 text-[13px] font-semibold shadow-[0_1px_2px_rgba(16,24,40,.04)] transition hover:border-ink/20"
+          >
+            Mostra altri {Math.min(PAGE, filtered.length - visible)}
+          </button>
+          <p className="text-[12px] text-muted2">
+            Visualizzati {visible} di {filtered.length}
+          </p>
+        </div>
+      )}
 
       {selected && (
         <ProductDrawer

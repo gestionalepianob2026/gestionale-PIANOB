@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Script di utilità/diagnostica fuori dall'app (CommonJS)
+    "check.js",
   ]),
 ]);
 

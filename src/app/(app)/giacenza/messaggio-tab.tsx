@@ -9,7 +9,7 @@ import {
   IconAlert,
 } from "@/components/icons";
 
-type Fonte = "alias" | "ai" | "nessuno";
+type Fonte = "alias" | "diretto" | "ai" | "nessuno";
 type RigaConsumo = {
   termine: string;
   qta: number;
@@ -331,6 +331,12 @@ function FonteBadge({
     return (
       <span className="rounded-full bg-ok/10 px-2 py-0.5 text-[10.5px] font-semibold text-ok">
         MEMORIZZATO
+      </span>
+    );
+  if (fonte === "diretto")
+    return (
+      <span className="rounded-full bg-ok/10 px-2 py-0.5 text-[10.5px] font-semibold text-ok">
+        RICONOSCIUTO
       </span>
     );
   const pct = Math.round(conf * 100);

@@ -2,11 +2,16 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { parseMessaggio, normalizzaTermine } from "@/lib/consumi";
+import {
+  parseMessaggio,
+  normalizzaTermine,
+  preparaIndice,
+  abbinaLocale,
+} from "@/lib/consumi";
 
 export const maxDuration = 60;
 
-export type Fonte = "alias" | "ai" | "nessuno";
+export type Fonte = "alias" | "diretto" | "ai" | "nessuno";
 
 export type RigaConsumo = {
   termine: string;
@@ -72,7 +77,7 @@ export async function POST(request: Request) {
   }));
 
   // 1) Abbinamento da alias appresi
-  const daAI: number[] = [];
+  const daControllare: number[] = [];
   righe.forEach((r, i) => {
     const norm = normalizzaTermine(r.termine);
     const pid = aliasMap.get(norm);
@@ -84,11 +89,29 @@ export async function POST(request: Request) {
       r.confidenza = 1;
       r.fonte = "alias";
     } else {
-      daAI.push(i);
+      daControllare.push(i);
     }
   });
 
-  // 2) Abbinamento AI per i termini non ancora riconosciuti
+  // 2) Abbinamento LOCALE deterministico (senza AI): riconosce i termini chiari
+  //    (nome esatto o unico candidato). Solo ciò che resta ambiguo passerà all'AI.
+  const indice = preparaIndice(prodotti);
+  const daAI: number[] = [];
+  for (const i of daControllare) {
+    const m = abbinaLocale(righe[i].termine, indice);
+    if (m) {
+      const p = prodById.get(m.productId)!;
+      righe[i].productId = p.id;
+      righe[i].prodotto = p.prodotto;
+      righe[i].categoria = p.categoria;
+      righe[i].confidenza = m.score;
+      righe[i].fonte = "diretto";
+    } else {
+      daAI.push(i);
+    }
+  }
+
+  // 3) Abbinamento AI SOLO per i termini che nemmeno il match locale ha capito.
   let aiAttiva = false;
   let messaggioAI: string | undefined;
   const apiKey = process.env.ANTHROPIC_API_KEY;

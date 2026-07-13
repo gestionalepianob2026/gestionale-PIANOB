@@ -9,6 +9,7 @@ import {
   IconArrowDown,
   IconCheck,
   IconSpinner,
+  IconDownload,
 } from "@/components/icons";
 import { MessaggioTab } from "./messaggio-tab";
 
@@ -131,12 +132,21 @@ export function GiacenzaClient({
   return (
     <div className="flex flex-col gap-5 pb-24">
       {/* Header */}
-      <div>
-        <h1 className="text-[30px] font-semibold tracking-tight">Consumi</h1>
-        <p className="mt-1 text-[13px] text-muted2">
-          Togli i prodotti usati nel turno, oppure incolla il messaggio dei
-          ragazzi e li scala in automatico.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-[30px] font-semibold tracking-tight">Consumi</h1>
+          <p className="mt-1 text-[13px] text-muted2">
+            Togli i prodotti usati nel turno, oppure incolla il messaggio dei
+            ragazzi e li scala in automatico.
+          </p>
+        </div>
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- endpoint di download, non una pagina */}
+        <a
+          href="/api/products/export"
+          className="flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-[13px] font-semibold shadow-[0_1px_2px_rgba(16,24,40,.04)] transition hover:border-ink/20"
+        >
+          <IconDownload width={17} height={17} /> Esporta CSV
+        </a>
       </div>
 
       {/* Tabs modalità */}
@@ -201,7 +211,7 @@ export function GiacenzaClient({
         </>
       )}
 
-      {/* Coda movimenti in attesa (manuale + conteggio) */}
+      {/* Coda movimenti in attesa (modalità manuale) */}
       {showLista && nDraft > 0 && (
         <section className="rounded-2xl border border-brand-dark/40 bg-brand/10 p-4">
           <div className="flex items-center justify-between">
@@ -258,7 +268,7 @@ export function GiacenzaClient({
         </p>
       )}
 
-      {/* Lista prodotti (manuale + conteggio) */}
+      {/* Lista prodotti (modalità manuale) */}
       {showLista && (
         <div className="flex flex-col gap-2.5">
           {filtered.slice(0, LIMIT).map((p) => {
@@ -352,7 +362,7 @@ export function GiacenzaClient({
         </div>
       )}
 
-      {/* Barra registra (sticky, manuale + conteggio) */}
+      {/* Barra registra (sticky, modalità manuale) */}
       {showLista && nDraft > 0 && (
         <div className="fixed inset-x-0 bottom-[60px] z-40 px-4 lg:bottom-6 lg:left-64">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-2xl border border-line bg-ink px-4 py-3 text-white shadow-xl lg:px-5">

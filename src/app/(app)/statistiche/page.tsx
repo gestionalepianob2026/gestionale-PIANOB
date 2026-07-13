@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { fmtEur, fmtNum, valoreRiga, isLow } from "@/lib/format";
+import { fmtEur, fmtNum, prezzoLordo, valoreRiga, isLow } from "@/lib/format";
 import {
   IconChart,
   IconTrend,
@@ -43,6 +43,7 @@ export default async function StatistichePage() {
   const [products, bolle, movimenti] = await Promise.all([
     prisma.product.findMany({
       select: {
+        id: true,
         prodotto: true,
         categoria: true,
         fornitore: true,
@@ -67,7 +68,15 @@ export default async function StatistichePage() {
         qtaPrima: true,
         qtaDopo: true,
         createdAt: true,
-        product: { select: { prodotto: true, categoria: true } },
+        product: {
+          select: {
+            id: true,
+            prodotto: true,
+            categoria: true,
+            prezzoUnit: true,
+            ivaRate: true,
+          },
+        },
       },
     }),
   ]);
@@ -111,6 +120,26 @@ export default async function StatistichePage() {
     .sort((a, b) => b.value - a.value)
     .slice(0, 8);
 
+  // —— Da riordinare adesso (sotto scorta) ——
+  const daRiordinare = products
+    .filter((p) => isLow(p))
+    .map((p) => {
+      const mancante = Math.max(0, p.sogliaMin - p.quantita);
+      // se già a 0 o sotto, proponi almeno di riportarla alla soglia
+      const daComprare = mancante > 0 ? mancante : Math.max(1, p.sogliaMin);
+      return {
+        id: p.id,
+        nome: p.prodotto,
+        categoria: p.categoria,
+        fornitore: p.fornitore,
+        giacenza: p.quantita,
+        soglia: p.sogliaMin,
+        costo: daComprare * prezzoLordo(p.prezzoUnit, p.ivaRate),
+      };
+    })
+    .sort((a, b) => a.giacenza - a.soglia - (b.giacenza - b.soglia));
+  const costoRiordino = daRiordinare.reduce((s, r) => s + r.costo, 0);
+
   // —— Acquisti (bolle): spesa totale, andamento mensile, fornitori ——
   let spesaTot = 0;
   const perMese = new Map<string, number>(); // "YYYY-MM" -> spesa
@@ -146,11 +175,21 @@ export default async function StatistichePage() {
   const hasBolle = bolle.length > 0;
 
   // —— Consumi reali (movimenti di fine turno) ——
+  const now = new Date();
+  const soglia30 = new Date(now.getTime() - 30 * 86400_000);
+
   let consumoTot = 0; // pezzi usciti
   let caricoTot = 0; // pezzi entrati
+  let consumoValTot = 0; // valore (costo IVA incl.) del consumato
+  let consumo30Qty = 0; // pezzi ultimi 30 giorni
+  let consumo30Val = 0; // valore ultimi 30 giorni
   const consumoMese = new Map<string, number>();
   const consumoCat = new Map<string, number>();
   const consumoProd = new Map<string, { categoria: string; qta: number }>();
+  // consumo per prodotto (id) per copertura scorte e scorte ferme
+  const consumoProdId = new Map<string, { qtaTot: number; qta30: number }>();
+  // consumo per giorno della settimana (0 = lunedì … 6 = domenica), in pezzi
+  const consumoDow = new Array(7).fill(0) as number[];
 
   for (const m of movimenti) {
     const uscita = Math.max(0, m.qtaPrima - m.qtaDopo); // scarico o rettifica in meno
@@ -159,7 +198,19 @@ export default async function StatistichePage() {
     if (uscita <= 0) continue;
     consumoTot += uscita;
 
+    const lordo = m.product
+      ? prezzoLordo(m.product.prezzoUnit, m.product.ivaRate)
+      : 0;
+    const valore = uscita * lordo;
+    consumoValTot += valore;
+
     const d = m.createdAt;
+    const recente = d >= soglia30;
+    if (recente) {
+      consumo30Qty += uscita;
+      consumo30Val += valore;
+    }
+
     const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`;
     consumoMese.set(key, (consumoMese.get(key) ?? 0) + uscita);
 
@@ -170,7 +221,48 @@ export default async function StatistichePage() {
     const cur = consumoProd.get(nome) ?? { categoria: cat, qta: 0 };
     cur.qta += uscita;
     consumoProd.set(nome, cur);
+
+    if (m.product) {
+      const cp = consumoProdId.get(m.product.id) ?? { qtaTot: 0, qta30: 0 };
+      cp.qtaTot += uscita;
+      if (recente) cp.qta30 += uscita;
+      consumoProdId.set(m.product.id, cp);
+    }
+
+    // getDay(): 0 = domenica → rimappo a 0 = lunedì
+    consumoDow[(d.getDay() + 6) % 7] += uscita;
   }
+
+  // —— In esaurimento: giorni di copertura sulla base del consumo ultimi 30gg ——
+  const inEsaurimento = products
+    .map((p) => {
+      const c = consumoProdId.get(p.id);
+      const perGiorno = c ? c.qta30 / 30 : 0;
+      if (perGiorno <= 0 || p.quantita <= 0) return null;
+      return {
+        nome: p.prodotto,
+        categoria: p.categoria,
+        giacenza: p.quantita,
+        giorni: p.quantita / perGiorno,
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+    .sort((a, b) => a.giorni - b.giorni)
+    .slice(0, 8);
+
+  // —— Scorte ferme: giacenza valorizzata ma mai consumata (capitale immobilizzato) ——
+  const scorteFerme = products
+    .filter((p) => p.quantita > 0 && !consumoProdId.has(p.id))
+    .map((p) => ({
+      nome: p.prodotto,
+      categoria: p.categoria,
+      value: valoreRiga(p.prezzoUnit, p.ivaRate, p.quantita),
+    }))
+    .filter((p) => p.value > 0)
+    .sort((a, b) => b.value - a.value);
+  const scorteFermeTot = scorteFerme.reduce((s, p) => s + p.value, 0);
+  const maxDow = Math.max(1, ...consumoDow);
+  const DOW = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"];
 
   const consumoMesiList = [...consumoMese.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
@@ -231,6 +323,52 @@ export default async function StatistichePage() {
         />
       </div>
 
+      {/* Da riordinare adesso (azionabile) */}
+      {daRiordinare.length > 0 && (
+        <section className="rounded-2xl border border-danger/30 bg-danger/[0.03] p-5 shadow-[0_1px_2px_rgba(16,24,40,.04)]">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
+              <IconAlert width={17} height={17} className="text-danger" />
+              Da riordinare adesso
+            </h2>
+            <span className="text-[13px] text-muted2">
+              {daRiordinare.length} articoli · ~
+              <span className="font-semibold text-ink">
+                {fmtEur(costoRiordino)}
+              </span>{" "}
+              per ripristinare
+            </span>
+          </div>
+          <ul className="mt-4 grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+            {daRiordinare.slice(0, 12).map((r) => (
+              <li
+                key={r.id}
+                className="flex items-center justify-between gap-3 border-b border-line2 py-2.5"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] font-medium">{r.nome}</p>
+                  <p className="text-[11.5px] text-muted2">
+                    {r.fornitore ? `${r.fornitore} · ` : ""}
+                    {fmtNum(r.giacenza)}/{fmtNum(r.soglia)} pz
+                  </p>
+                </div>
+                <span className="shrink-0 text-[13px] font-semibold tabular-nums text-danger">
+                  ~{fmtEur(r.costo)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {daRiordinare.length > 12 && (
+            <Link
+              href="/inventario?low=1"
+              className="mt-3 inline-block text-[12.5px] font-medium text-muted hover:text-ink"
+            >
+              Vedi tutti i {daRiordinare.length} articoli sotto scorta →
+            </Link>
+          )}
+        </section>
+      )}
+
       {/* Consumi reali (movimenti di fine turno) */}
       {!hasMovimenti ? (
         <section className="flex flex-col items-start gap-2 rounded-2xl border border-dashed border-line bg-tint p-5">
@@ -253,9 +391,14 @@ export default async function StatistichePage() {
         <>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard
-              label="CONSUMATO (PEZZI)"
-              value={fmtNum(consumoTot)}
-              hint={`${movimenti.length} movimenti`}
+              label="VALORE CONSUMATO"
+              value={fmtEur(consumoValTot)}
+              hint={`costo IVA incl. · ${fmtNum(consumoTot)} pezzi`}
+            />
+            <StatCard
+              label="CONSUMO ULTIMI 30GG"
+              value={fmtEur(consumo30Val)}
+              hint={`${fmtNum(consumo30Qty)} pezzi`}
             />
             <StatCard
               label="CARICATO (PEZZI)"
@@ -263,19 +406,13 @@ export default async function StatistichePage() {
               hint="rifornimenti registrati"
             />
             <StatCard
-              label="SALDO NETTO"
-              value={fmtNum(caricoTot - consumoTot)}
-              hint="carichi − scarichi"
-              danger={caricoTot - consumoTot < 0}
-            />
-            <StatCard
               label="CONSUMO MEDIO/MESE"
-              value={fmtNum(
+              value={fmtEur(
                 consumoMesiList.length
-                  ? Math.round(consumoTot / consumoMesiList.length)
+                  ? consumoValTot / consumoMesiList.length
                   : 0,
               )}
-              hint="pezzi al mese"
+              hint="valore al mese"
             />
           </div>
 
@@ -375,6 +512,81 @@ export default async function StatistichePage() {
               </div>
             </section>
           )}
+
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            {/* In esaurimento */}
+            <section className="lg:col-span-2 rounded-2xl border border-line bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,.04)]">
+              <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
+                <IconAlert width={17} height={17} className="text-warn" />
+                In esaurimento
+              </h2>
+              <p className="mt-0.5 text-[12px] text-muted2">
+                Giorni di autonomia stimati sul consumo degli ultimi 30 giorni.
+              </p>
+              {inEsaurimento.length === 0 ? (
+                <Empty text="Consumo recente insufficiente per una stima." />
+              ) : (
+                <ul className="mt-4 flex flex-col divide-y divide-line2">
+                  {inEsaurimento.map((p, i) => {
+                    const giorni = Math.floor(p.giorni);
+                    const urgente = giorni <= 7;
+                    return (
+                      <li
+                        key={`${p.nome}-${i}`}
+                        className="flex items-center justify-between gap-3 py-2.5"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-[13px] font-medium">
+                            {p.nome}
+                          </p>
+                          <p className="text-[11.5px] text-muted2">
+                            {p.categoria} · {fmtNum(p.giacenza)} pz in giacenza
+                          </p>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold tabular-nums ${
+                            urgente
+                              ? "bg-danger/10 text-danger"
+                              : "bg-tint text-ink"
+                          }`}
+                        >
+                          ~{giorni} gg
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+
+            {/* Consumo per giorno della settimana */}
+            <section className="rounded-2xl border border-line bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,.04)]">
+              <h2 className="text-[15px] font-semibold tracking-tight">
+                Giorni più intensi
+              </h2>
+              <p className="mt-0.5 text-[12px] text-muted2">
+                Pezzi consumati per giorno della settimana.
+              </p>
+              <div className="mt-5 flex h-40 items-end gap-1.5">
+                {consumoDow.map((q, i) => (
+                  <div
+                    key={DOW[i]}
+                    className="flex flex-1 flex-col items-center gap-2"
+                  >
+                    <div className="flex w-full flex-1 items-end">
+                      <div
+                        className="w-full rounded-t-md bg-ink/80 transition-all"
+                        style={{ height: `${Math.max(3, (q / maxDow) * 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-medium capitalize text-muted2">
+                      {DOW[i]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
         </>
       )}
 
@@ -509,6 +721,44 @@ export default async function StatistichePage() {
           </ul>
         </section>
       </div>
+
+      {/* Scorte ferme: capitale immobilizzato mai consumato */}
+      {hasMovimenti && scorteFerme.length > 0 && (
+        <section className="rounded-2xl border border-line bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,.04)]">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
+              <IconBox width={17} height={17} className="text-muted" />
+              Scorte ferme
+            </h2>
+            <span className="text-[13px] text-muted2">
+              {scorteFerme.length} articoli ·{" "}
+              <span className="font-semibold text-ink">
+                {fmtEur(scorteFermeTot)}
+              </span>{" "}
+              immobilizzati
+            </span>
+          </div>
+          <p className="mt-0.5 text-[12px] text-muted2">
+            In giacenza ma mai scaricati: capitale fermo da valutare.
+          </p>
+          <ul className="mt-4 grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+            {scorteFerme.slice(0, 10).map((p, i) => (
+              <li
+                key={`${p.nome}-${i}`}
+                className="flex items-center justify-between gap-3 border-b border-line2 py-2.5"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] font-medium">{p.nome}</p>
+                  <p className="text-[11.5px] text-muted2">{p.categoria}</p>
+                </div>
+                <span className="shrink-0 text-[13px] font-semibold tabular-nums">
+                  {fmtEur(p.value)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Top articoli per valore */}
       <section className="rounded-2xl border border-line bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,.04)]">

@@ -149,3 +149,17 @@ export const IconSpinner = (p: P) => (
     <path d="M21 12a9 9 0 1 1-6.2-8.5" />
   </svg>
 );
+
+export const IconUser = (p: P) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21a8 8 0 0 1 16 0" />
+  </svg>
+);
+
+export const IconDownload = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M12 3v12M7 10l5 5 5-5" />
+    <path d="M4 21h16" />
+  </svg>
+);

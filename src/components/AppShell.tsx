@@ -13,6 +13,7 @@ import {
   IconClipboard,
   IconLogout,
 } from "@/components/icons";
+import { ProfileModal } from "@/components/ProfileModal";
 import type { SessionUser } from "@/lib/auth";
 
 const NAV = [
@@ -52,6 +53,8 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [me, setMe] = useState<SessionUser>(user);
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
@@ -96,18 +99,24 @@ export function AppShell({
         </nav>
 
         <div className="mt-auto flex items-center gap-3 rounded-xl border border-line p-3">
-          <div className="grid size-9 place-items-center rounded-full bg-brand text-[13px] font-bold text-black">
-            {initials(user.name)}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold">{user.name}</p>
-            <p className="text-[11px] font-medium text-muted2">{user.role}</p>
-          </div>
+          <button
+            onClick={() => setProfileOpen(true)}
+            title="Modifica profilo"
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left transition hover:opacity-80"
+          >
+            <div className="grid size-9 shrink-0 place-items-center rounded-full bg-brand text-[13px] font-bold text-black">
+              {initials(me.name)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-semibold">{me.name}</p>
+              <p className="text-[11px] font-medium text-muted2">{me.role}</p>
+            </div>
+          </button>
           <button
             onClick={logout}
             disabled={loggingOut}
             title="Esci"
-            className="grid size-8 place-items-center rounded-lg text-muted transition hover:bg-line2 hover:text-danger"
+            className="grid size-8 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-line2 hover:text-danger"
           >
             <IconLogout width={18} height={18} />
           </button>
@@ -117,9 +126,13 @@ export function AppShell({
       {/* Header mobile */}
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-white/90 px-4 py-3 backdrop-blur lg:hidden">
         <Logo size={32} />
-        <div className="grid size-8 place-items-center rounded-full bg-brand text-[12px] font-bold text-black">
-          {initials(user.name)}
-        </div>
+        <button
+          onClick={() => setProfileOpen(true)}
+          title="Modifica profilo"
+          className="grid size-8 place-items-center rounded-full bg-brand text-[12px] font-bold text-black"
+        >
+          {initials(me.name)}
+        </button>
       </header>
 
       {/* Contenuto */}
@@ -156,6 +169,17 @@ export function AppShell({
           Esci
         </button>
       </nav>
+
+      {profileOpen && (
+        <ProfileModal
+          user={me}
+          onClose={() => setProfileOpen(false)}
+          onSaved={(u) => {
+            setMe((prev) => ({ ...prev, name: u.name, role: u.role }));
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }
