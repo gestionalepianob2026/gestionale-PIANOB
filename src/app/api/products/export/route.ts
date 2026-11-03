@@ -14,7 +14,10 @@ function nq(n: number): string {
 
 // Campo CSV: raddoppia le virgolette ed avvolge se necessario.
 function cell(v: string): string {
-  const s = v ?? "";
+  let s = v ?? "";
+  // Evita la "formula injection": un nome che inizia con = + - @ verrebbe
+  // eseguito come formula da Excel. Lo si neutralizza con un apice iniziale.
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
   return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

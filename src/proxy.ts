@@ -19,13 +19,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Utente già autenticato che apre /login -> dashboard
-  if (session && isPublic) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    url.search = "";
-    return NextResponse.redirect(url);
-  }
+  // (Chi è già autenticato e apre /login viene rimandato alla home dalla pagina
+  // stessa, dopo aver verificato che l'utente esista ancora nel database: farlo
+  // qui, solo sulla firma del token, creava un ciclo infinito per gli utenti rimossi.)
 
   return NextResponse.next();
 }

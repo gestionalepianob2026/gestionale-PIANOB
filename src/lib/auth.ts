@@ -13,6 +13,10 @@ export type SessionUser = {
 function secret() {
   const s = process.env.AUTH_SECRET;
   if (!s) throw new Error("AUTH_SECRET mancante in .env");
+  // In produzione un segreto debole o di esempio renderebbe le sessioni falsificabili.
+  if (process.env.NODE_ENV === "production" && (s.length < 24 || /change-?me/i.test(s))) {
+    throw new Error("AUTH_SECRET troppo debole: usa una stringa casuale di 32+ caratteri");
+  }
   return new TextEncoder().encode(s);
 }
 
@@ -44,25 +48,48 @@ export async function verifyToken(
 }
 
 /**
- * Opzioni cookie di sessione adattive: in HTTPS usa secure + sameSite "none"
- * (necessario in produzione/embedding); in HTTP locale (rete di casa) usa
- * sameSite "lax" senza secure, altrimenti il browser rifiuterebbe il cookie.
+ * Opzioni cookie di sessione: `secure` solo in HTTPS (in HTTP locale il browser
+ * rifiuterebbe il cookie). SameSite è sempre "lax": con "none" le API
+ * sarebbero esposte a richieste cross-site (CSRF).
  */
 export function sessionCookie(value: string, isHttps: boolean, maxAge = MAX_AGE) {
   return {
     name: SESSION_COOKIE,
     value,
     httpOnly: true,
-    sameSite: (isHttps ? "none" : "lax") as "none" | "lax",
+    sameSite: "lax" as const,
     path: "/",
     maxAge,
     secure: isHttps,
   };
 }
 
-/** Legge la sessione nel contesto di un Server Component / Route Handler. */
+/**
+ * Legge la sessione nel contesto di un Server Component / Route Handler.
+ * Oltre alla firma verifica che l'utente esista ancora e ne restituisce nome e
+ * ruolo aggiornati dal database: un utente rimosso o declassato perde subito
+ * l'accesso, senza aspettare la scadenza del token (7 giorni).
+ */
 export async function getSession(): Promise<SessionUser | null> {
   const { cookies } = await import("next/headers");
   const store = await cookies();
-  return verifyToken(store.get(SESSION_COOKIE)?.value);
+  const dalToken = await verifyToken(store.get(SESSION_COOKIE)?.value);
+  if (!dalToken) return null;
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    return await prisma.user.findUnique({
+      where: { id: dalToken.id },
+      select: { id: true, email: true, name: true, role: true },
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** true se la richiesta è arrivata in HTTPS (anche dietro un proxy come Render). */
+export function isHttpsRequest(request: Request): boolean {
+  return (
+    request.headers.get("x-forwarded-proto")?.split(",")[0].trim() === "https" ||
+    request.url.startsWith("https")
+  );
 }

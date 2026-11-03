@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
 import type { ProductDTO } from "@/lib/format";
 import { InventarioClient } from "./inventario-client";
 
 export const dynamic = "force-dynamic";
 
 export default async function InventarioPage() {
+  const session = await getSession();
   const rows = await prisma.product.findMany({
     orderBy: { prodotto: "asc" },
     select: {
@@ -30,5 +32,9 @@ export default async function InventarioPage() {
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count);
 
-  return <InventarioClient initialProducts={products} categories={categories} />;
+  return <InventarioClient
+      initialProducts={products}
+      categories={categories}
+      isAdmin={session?.role === "ADMIN"}
+    />;
 }

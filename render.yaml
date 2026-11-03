@@ -16,9 +16,26 @@ services:
       # I valori segreti si inseriscono a mano nella dashboard Render (sync:false).
       - key: DATABASE_URL
         sync: false
+      # Segreto di sessione: generato da Render, forte e mai nel repository.
       - key: AUTH_SECRET
-        sync: false
+        generateValue: true
+      # AI: basta UNA delle due chiavi (se ci sono entrambe vince Anthropic;
+      # AI_PROVIDER=openai|anthropic forza la scelta).
       - key: ANTHROPIC_API_KEY
         sync: false
-      - key: ANTHROPIC_MODEL
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: AI_PROVIDER
+        sync: false
+      # Opzionali: di default scansione=claude-sonnet-5-5, consumi=claude-haiku-5-5
+      - key: ANTHROPIC_MODEL_SCAN
+        sync: false
+      - key: ANTHROPIC_MODEL_CONSUMI
+        sync: false
+      # Bot Telegram (vedi README): token da @BotFather, segreto e codice a scelta.
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        generateValue: true
+      - key: TELEGRAM_SETUP_CODE
         sync: false

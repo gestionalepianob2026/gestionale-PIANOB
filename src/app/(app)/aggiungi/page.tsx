@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { AddForm } from "./add-form";
+import { fornitoriUnici } from "@/lib/fornitori";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export default async function AggiungiPage() {
   return (
     <AddForm
       categorie={cats.map((c) => c.categoria)}
-      fornitori={forns.map((f) => f.fornitore!).filter(Boolean)}
+      fornitori={fornitoriUnici(forns.map((f) => f.fornitore))}
     />
   );
 }

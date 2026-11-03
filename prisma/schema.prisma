@@ -86,3 +86,54 @@ model Movimento {
   @@index([tipo])
   @@index([createdAt])
 }
+
+// Impostazioni modificabili dal gestionale (chiave → valore), es. la parola
+// d'ordine per attivare il bot Telegram.
+model Impostazione {
+  chiave    String   @id
+  valore    String
+  updatedAt DateTime @updatedAt
+}
+
+// --- Bot Telegram (scarico consumi dal gruppo dei ragazzi) -------------------
+
+// Gruppi (o chat) autorizzati a scaricare il magazzino. Si aggiungono con
+// /attiva <codice> scritto nel gruppo; senza questa riga il bot ignora la chat.
+model TelegramChat {
+  id        String   @id @default(cuid())
+  chatId    String   @unique
+  titolo    String?
+  createdAt DateTime @default(now())
+}
+
+// Un messaggio del gruppo già elaborato. La coppia (chatId, messageId) è unica:
+// se Telegram rinvia lo stesso aggiornamento, non si scarica due volte.
+model TelegramMessaggio {
+  id        String         @id @default(cuid())
+  chatId    String
+  messageId Int
+  mittente  String?
+  testo     String
+  annullato Boolean        @default(false)
+  createdAt DateTime       @default(now())
+  righe     TelegramRiga[]
+
+  @@unique([chatId, messageId])
+  @@index([createdAt])
+}
+
+model TelegramRiga {
+  id          String            @id @default(cuid())
+  messaggioId String
+  messaggio   TelegramMessaggio @relation(fields: [messaggioId], references: [id], onDelete: Cascade)
+  termine     String
+  qta         Float
+  // APPLICATA (scaricata) | IN_ATTESA (serve una scelta a pulsanti) | SALTATA | ANNULLATA
+  stato       String
+  productId   String?
+  movimentoId String?
+  candidati   String? // JSON: id dei prodotti proposti nei pulsanti
+  createdAt   DateTime          @default(now())
+
+  @@index([messaggioId])
+}

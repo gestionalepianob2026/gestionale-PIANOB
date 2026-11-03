@@ -1,14 +1,32 @@
 import { prisma } from "@/lib/prisma";
+import { aiConfigurata } from "@/lib/ai";
+import type { ProductDTO } from "@/lib/format";
 import { ScanClient } from "./scan-client";
 
 export const dynamic = "force-dynamic";
 
 export default async function ScansionaPage() {
-  const cats = await prisma.product.findMany({
-    distinct: ["categoria"],
-    select: { categoria: true },
-    orderBy: { categoria: "asc" },
+  const rows = await prisma.product.findMany({
+    orderBy: { prodotto: "asc" },
+    select: {
+      id: true,
+      prodotto: true,
+      categoria: true,
+      tipologia: true,
+      zona: true,
+      fornitore: true,
+      prezzoUnit: true,
+      ivaRate: true,
+      quantita: true,
+      sogliaMin: true,
+    },
   });
-  const aiEnabled = Boolean(process.env.ANTHROPIC_API_KEY);
-  return <ScanClient categorie={cats.map((c) => c.categoria)} aiEnabled={aiEnabled} />;
+  const categorie = [...new Set(rows.map((r) => r.categoria))].sort();
+  return (
+    <ScanClient
+      categorie={categorie}
+      products={rows as ProductDTO[]}
+      aiEnabled={aiConfigurata()}
+    />
+  );
 }

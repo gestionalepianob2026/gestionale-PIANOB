@@ -1,94 +1,125 @@
 # PIANO B — Gestionale
 
-Gestionale di magazzino per il locale **PIANO B**: inventario di vini, bevande e
-alimenti, dashboard, inserimento manuale e **scansione delle bolle con AI**.
+Gestionale di magazzino per il locale **PIANO B**: inventario, consumi di fine
+turno, statistiche utili alla gestione e **lettura automatica delle bolle**
+(foto anche scritte a mano, PDF, Excel/CSV, fattura elettronica XML).
 
-Costruito con Next.js 16, React 19, Tailwind CSS v4, Prisma e l'API Claude
-(Anthropic) per la lettura automatica delle bolle.
+Next.js 16 · React 19 · Tailwind v4 · Prisma 6 + **Postgres** · API Claude.
 
 ---
 
-## Avvio rapido (sviluppo)
+## Sviluppo in locale
+
+Serve un Postgres. Il progetto usa `DATABASE_URL` (in `.env` o `.env.local`,
+quest'ultimo ha la precedenza ed è ignorato da git).
 
 ```bash
-cd gestionale
 npm install
-npm run db:push     # crea il database SQLite
-npm run db:seed     # importa gli articoli dall'Excel + crea gli utenti
-npm run dev         # avvia su http://localhost:3000
+npx prisma db push      # crea le tabelle
+npm run db:seed         # utenti iniziali + 1170 articoli (SOLO su db vuoto)
+npm run dev             # http://localhost:3000
 ```
 
-### Credenziali di accesso
-
-| Ruolo | Email             | Password     |
-| ----- | ----------------- | ------------ |
-| Admin | admin@pianob.it   | pianob2026   |
-| Crew  | marco@pianob.it   | pianob2026   |
-
-> Cambia le password in produzione: modifica `prisma/seed.mjs` ed esegui di nuovo
-> `npm run db:seed`, oppure aggiungi una pagina di gestione utenti.
+`db:seed` **non sovrascrive mai** dati esistenti: se ci sono già articoli si
+ferma, e non tocca le password degli utenti presenti. La password iniziale è
+casuale e viene mostrata una sola volta (oppure `SEED_PASSWORD=... npm run db:seed`).
+Cambiala subito dal profilo (clic sul tuo nome in basso a sinistra).
 
 ---
 
-## Funzionalità
+## Funzioni
 
-- **Login** con sessione sicura (cookie firmato JWT).
-- **Dashboard**: valore magazzino, n° articoli, articoli sotto scorta, ultima
-  bolla, distribuzione del valore per categoria, lista "da riordinare".
-- **Inventario**: ricerca, filtri per categoria e "sotto scorta", modifica
-  rapida della giacenza, prezzi, fornitore e soglia minima, eliminazione.
-- **Aggiungi**: inserimento manuale di un articolo.
-- **Scansiona bolla (AI)**: carichi/scatti la foto di una bolla, Claude estrae
-  numero documento, fornitore e righe prodotto; tu correggi e confermi.
-
-I 1170 articoli reali sono importati da `Inventario 30 Aprile.xlsx`
-(vini, bevande, distillati) tramite `prisma/seed-data.json`.
+- **Dashboard** con valore del magazzino, sotto scorta, ultima bolla.
+- **Inventario**: ricerca, filtri, modifica giacenza/prezzi/soglie (ogni
+  modifica manuale della giacenza lascia una rettifica nello storico), export
+  CSV. L'eliminazione di un articolo è riservata all'amministratore.
+- **Consumi** (`/giacenza`): scarico da messaggio WhatsApp (riconosce i
+  soprannomi, li impara alla prima conferma) o manuale.
+- **Scansiona bolla**: più foto/pagine insieme, PDF, Excel/CSV, XML FatturaPA.
+  Le righe vengono abbinate agli articoli già in magazzino (si carica la
+  giacenza invece di creare doppioni), con controllo di quantità × prezzo e
+  della somma contro l'imponibile; ogni carico lascia un movimento.
+- **Statistiche**: cosa ordinare e da chi, articoli in esaurimento, consumi e
+  acquisti per periodo, top prodotti, giorni forti, scorte ferme, ammanchi di
+  inventario, qualità dei dati.
+- **Fornitori**: `Giesse`, `giesse`, `GIESSE` sono lo stesso fornitore (il
+  confronto ignora maiuscole e accenti). Per unire i doppioni già presenti:
+  `npm run db:unisci-fornitori` (con `-- --dry-run` mostra prima cosa farebbe).
 
 ---
 
-## Attivare la scansione AI
+## Lettura bolle con l'AI
 
-La funzione è già pronta; va solo fornita la chiave API:
+Funziona con **OpenAI** (`OPENAI_API_KEY`, modelli `gpt-5.5` per i documenti e
+`gpt-5.4-mini` per i consumi; cambiabili con `OPENAI_MODEL_SCAN` / `OPENAI_MODEL_CONSUMI`)
+oppure con **Anthropic** (sotto). Se c'è una sola chiave usa quella; con entrambe
+vince Anthropic, a meno di `AI_PROVIDER=openai`.
 
-1. Crea una chiave su <https://console.anthropic.com/>.
-2. Apri il file `.env` e imposta:
+1. Chiave su <https://console.anthropic.com/> → `.env`:
    ```env
    ANTHROPIC_API_KEY="sk-ant-..."
-   ANTHROPIC_MODEL="claude-opus-4-8"
+   # opzionali (default sotto):
+   # ANTHROPIC_MODEL_SCAN="claude-sonnet-5-5"     # lettura documenti
+   # ANTHROPIC_MODEL_CONSUMI="claude-haiku-5-5"   # abbinamento soprannomi
    ```
-3. Riavvia il server.
+2. Riavvia il server.
 
-Finché la chiave è vuota, la pagina "Scansiona bolla" funziona comunque: avvisa
-che l'AI non è attiva e permette l'inserimento manuale delle righe.
+Le **fatture XML** si leggono senza AI (gratis e precise). Senza chiave la
+pagina funziona comunque con XML e inserimento manuale.
+
+Costi contenuti: il prompt statico e il catalogo prodotti sono in cache, le
+foto vengono ridotte nel browser prima dell'invio, l'AI dei consumi interviene
+solo sui termini che alias e abbinamento locale non riconoscono.
 
 ---
 
-## Pubblicazione online (telefono + PC)
+## Bot Telegram: scarico consumi dal gruppo
 
-Il database di default è **SQLite** (file `prisma/dev.db`), ideale per lo
-sviluppo e per un PC del locale. Per l'accesso online da più dispositivi conviene
-un database gestito (es. **Postgres** su Neon/Supabase) e l'hosting su Vercel,
-Railway o un VPS:
+I ragazzi scrivono nel gruppo Telegram cosa hanno consumato (`12 san pell`,
+`3 aperol`, `coca zero x6`, anche più voci su una riga separate da virgola) e
+il magazzino si scarica da solo. Il bot risponde col riepilogo
+(`✅ 12 × San Pellegrino (20 → 8)`, avviso se sotto scorta).
 
-1. In `prisma/schema.prisma` cambia `provider = "sqlite"` in `"postgresql"`.
-2. Imposta `DATABASE_URL` con la stringa di connessione Postgres.
-3. `npm run db:push && npm run db:seed`.
-4. Configura su hosting le variabili `DATABASE_URL`, `AUTH_SECRET` (un valore
-   lungo e casuale) e, se vuoi l'AI, `ANTHROPIC_API_KEY`.
-5. `npm run build && npm run start`.
+- Scarico **automatico** solo se il prodotto è certo (soprannome già imparato,
+  nome inequivocabile; l'AI da sola non basta, suggerisce solo il pulsante giusto). Se ha un dubbio, mostra 2-3 pulsanti
+  con i prodotti possibili: un tocco scarica **e memorizza** il soprannome.
+- Pulsante **↩️ Annulla scarico** (entro 24 ore): rimette tutto a posto.
+- Lo stesso messaggio non scarica mai due volte; scarichi simultanei di più
+  persone non si sovrascrivono (la giacenza è bloccata durante l'aggiornamento).
+- Gli scarichi compaiono nello storico/statistiche come gli altri (nota «Telegram · Nome»).
+
+**Attivazione (una tantum)** — serve il sito online (HTTPS):
+1. Su Telegram, **@BotFather** → `/setprivacy` → scegli il bot → **Disable**
+   (altrimenti in un gruppo il bot non vede i messaggi normali), poi aggiungi il bot al gruppo.
+2. Variabili sul server: `TELEGRAM_BOT_TOKEN` (da BotFather), `TELEGRAM_WEBHOOK_SECRET`
+   (stringa casuale 16+ caratteri), `TELEGRAM_SETUP_CODE` (parola d'ordine a tua scelta).
+   Poi `npx prisma db push` (nuove tabelle; lo fa già il build su Render).
+3. Collega il bot al sito: `npm run telegram:webhook -- https://tuo-sito.onrender.com`
+   (`--stato` per controllare, `--rimuovi` per scollegare).
+4. Nel gruppo scrivi `/attiva LA_TUA_PAROLA`. Da quel momento il gruppo è autorizzato;
+   gli altri gruppi/persone vengono ignorati. `/disattiva` lo toglie, `/aiuto` mostra le istruzioni.
+
+---
+
+## Pubblicazione (Render + Postgres)
+
+`render.yaml` descrive il servizio. Variabili: `DATABASE_URL` (Postgres),
+`AUTH_SECRET` (generata da Render), `ANTHROPIC_API_KEY`. In produzione
+`AUTH_SECRET` deve essere lunga (24+ caratteri) e non di esempio, altrimenti
+l'app si rifiuta di avviarsi. `/api/ping` serve per il keep-alive.
 
 ---
 
 ## Comandi utili
 
-| Comando             | Descrizione                                        |
-| ------------------- | -------------------------------------------------- |
-| `npm run dev`       | Server di sviluppo                                 |
-| `npm run build`     | Build di produzione                                |
-| `npm run start`     | Avvia la build di produzione                       |
-| `npm run db:seed`   | Reimporta articoli e utenti                        |
-| `npm run db:reset`  | Azzera e ricrea il database (cancella i dati)      |
-| `npm run db:studio` | Interfaccia visuale al database (Prisma Studio)    |
+| Comando                      | Descrizione                                        |
+| ---------------------------- | -------------------------------------------------- |
+| `npm run dev`                | Server di sviluppo                                 |
+| `npm run build` / `start`    | Build e avvio di produzione                        |
+| `npm run db:seed`            | Carica utenti e articoli su db vuoto               |
+| `npm run db:unisci-fornitori`| Unisce i fornitori scritti in modo diverso         |
+| `npm run db:reset`           | Azzera e ricrea il database (cancella tutto)       |
+| `npm run db:studio`          | Interfaccia visuale al database                    |
 
 ---
 
@@ -96,19 +127,10 @@ Railway o un VPS:
 
 ```
 src/
-  app/
-    login/                  pagina di accesso
-    (app)/                  area protetta (dashboard, inventario, aggiungi, scansiona)
-    api/
-      auth/                 login / logout
-      products/             CRUD articoli
-      scan/                 analisi AI della bolla
-      bolle/                conferma e salvataggio bolla
-  components/               Logo, icone, AppShell (sidebar + nav mobile)
-  lib/                      prisma, auth (sessioni), format (calcoli/euro)
-  proxy.ts                  protezione delle route (ex middleware)
-prisma/
-  schema.prisma            modello dati (User, Product, Bolla)
-  seed.mjs                 importazione dati
-  seed-data.json           articoli estratti dall'Excel
+  app/(app)/        dashboard, inventario, consumi, statistiche, aggiungi, scansiona
+  app/api/          auth, products, movimenti, consumi, scan, bolle
+  lib/              auth, ai (modelli/errori), bolla (schema/parsers/controlli),
+                    consumi (parser + ricerca fuzzy), fornitori, statistiche
+  components/       Logo, AppShell, ProductPicker, icone
+prisma/             schema, seed, seed-data.json, unisci-fornitori
 ```

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { getSession, signSession, sessionCookie } from "@/lib/auth";
+import { getSession, signSession, sessionCookie, isHttpsRequest } from "@/lib/auth";
 
 export async function PATCH(request: Request) {
   const session = await getSession();
@@ -9,7 +9,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
 
   const body = await request.json().catch(() => ({}));
-  const name = typeof body.name === "string" ? body.name.trim() : undefined;
+  const name = typeof body.name === "string" ? body.name.replace(/\s+/g, " ").trim().slice(0, 60) : undefined;
   const currentPassword =
     typeof body.currentPassword === "string" ? body.currentPassword : "";
   const newPassword =
@@ -65,9 +65,7 @@ export async function PATCH(request: Request) {
     role: updated.role,
   });
 
-  const isHttps =
-    request.headers.get("x-forwarded-proto") === "https" ||
-    request.url.startsWith("https");
+  const isHttps = isHttpsRequest(request);
 
   const res = NextResponse.json({
     user: { name: updated.name, email: updated.email, role: updated.role },

@@ -12,6 +12,7 @@ import {
   IconChart,
   IconClipboard,
   IconLogout,
+  IconSettings,
 } from "@/components/icons";
 import { ProfileModal } from "@/components/ProfileModal";
 import type { SessionUser } from "@/lib/auth";
@@ -71,7 +72,7 @@ export function AppShell({
       {/* Sidebar desktop */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-white px-4 py-5 lg:flex">
         <div className="px-2">
-          <Logo size={36} />
+          <Logo size={46} />
         </div>
 
         <p className="mt-7 px-3 text-[11px] font-semibold tracking-wide text-muted2">
@@ -97,6 +98,25 @@ export function AppShell({
             );
           })}
         </nav>
+
+        {me.role === "ADMIN" && (
+          <>
+            <p className="mt-6 px-3 text-[11px] font-semibold tracking-wide text-muted2">
+              AMMINISTRAZIONE
+            </p>
+            <nav className="mt-2 flex flex-col gap-1">
+              <Link
+                href="/impostazioni"
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                  isActive("/impostazioni") ? "bg-ink text-white" : "text-slate hover:bg-line2"
+                }`}
+              >
+                <IconSettings width={19} height={19} />
+                Impostazioni
+              </Link>
+            </nav>
+          </>
+        )}
 
         <div className="mt-auto flex items-center gap-3 rounded-xl border border-line p-3">
           <button
@@ -125,14 +145,25 @@ export function AppShell({
 
       {/* Header mobile */}
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-white/90 px-4 py-3 backdrop-blur lg:hidden">
-        <Logo size={32} />
-        <button
-          onClick={() => setProfileOpen(true)}
-          title="Modifica profilo"
-          className="grid size-8 place-items-center rounded-full bg-brand text-[12px] font-bold text-black"
-        >
-          {initials(me.name)}
-        </button>
+        <Logo size={36} />
+        <div className="flex items-center gap-2">
+          {me.role === "ADMIN" && (
+            <Link
+              href="/impostazioni"
+              title="Impostazioni"
+              className="grid size-8 place-items-center rounded-full text-muted transition hover:bg-line2 hover:text-ink"
+            >
+              <IconSettings width={19} height={19} />
+            </Link>
+          )}
+          <button
+            onClick={() => setProfileOpen(true)}
+            title="Modifica profilo"
+            className="grid size-8 place-items-center rounded-full bg-brand text-[12px] font-bold text-black"
+          >
+            {initials(me.name)}
+          </button>
+        </div>
       </header>
 
       {/* Contenuto */}

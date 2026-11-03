@@ -29,7 +29,9 @@ export function LoginForm() {
         setLoading(false);
         return;
       }
-      const next = params.get("next") || "/";
+      // Solo percorsi interni: niente "//sito-esterno" (open redirect).
+      const richiesto = params.get("next") || "/";
+      const next = richiesto.startsWith("/") && !richiesto.startsWith("//") && !richiesto.startsWith("/\\") ? richiesto : "/";
       router.replace(next);
       router.refresh();
     } catch {
@@ -42,14 +44,10 @@ export function LoginForm() {
     <main className="flex min-h-screen items-center justify-center bg-white px-5 py-10">
       <div className="w-full max-w-[380px]">
         <div className="flex flex-col items-center text-center">
-          <Logo size={64} withText={false} />
-          <h1 className="mt-[30px] text-[30px] font-semibold tracking-[-0.025em] text-ink">
+          <Logo variant="full" size={150} />
+          <h1 className="mt-7 text-[28px] font-semibold tracking-[-0.025em] text-ink">
             Accedi al gestionale
           </h1>
-          <p className="mt-2 text-sm leading-relaxed text-muted">
-            Gestisci inventario, scansiona le bolle e tieni il magazzino sotto
-            controllo.
-          </p>
         </div>
 
         <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4">

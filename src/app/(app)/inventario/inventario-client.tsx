@@ -28,13 +28,15 @@ const PAGE = 200; // quanti articoli mostrare per volta
 export function InventarioClient({
   initialProducts,
   categories,
+  isAdmin,
 }: {
   initialProducts: ProductDTO[];
   categories: Cat[];
+  isAdmin: boolean;
 }) {
   const params = useSearchParams();
   const [products, setProducts] = useState(initialProducts);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(params.get("q") ?? "");
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [lowOnly, setLowOnly] = useState(params.get("low") === "1");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -282,6 +284,7 @@ export function InventarioClient({
           onClose={() => setSelectedId(null)}
           onUpdated={onUpdated}
           onDeleted={onDeleted}
+          canDelete={isAdmin}
         />
       )}
     </div>

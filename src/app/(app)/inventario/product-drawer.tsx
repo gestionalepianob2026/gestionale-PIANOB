@@ -22,11 +22,13 @@ export function ProductDrawer({
   onClose,
   onUpdated,
   onDeleted,
+  canDelete,
 }: {
   product: ProductDTO;
   onClose: () => void;
   onUpdated: (p: ProductDTO) => void;
   onDeleted: (id: string) => void;
+  canDelete: boolean;
 }) {
   const [form, setForm] = useState<ProductDTO>(product);
   const [saving, setSaving] = useState(false);
@@ -64,14 +66,17 @@ export function ProductDrawer({
   }
 
   async function remove() {
-    if (!confirm(`Eliminare “${product.prodotto}” dall'inventario?`)) return;
+    if (!confirm(`Eliminare “${product.prodotto}”? Verrà cancellato anche il suo storico movimenti.`)) return;
     setDeleting(true);
     try {
       const res = await fetch(`/api/products/${product.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error ?? "Impossibile eliminare l'articolo");
+      }
       onDeleted(product.id);
-    } catch {
-      setError("Impossibile eliminare l'articolo");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossibile eliminare l'articolo");
       setDeleting(false);
     }
   }
@@ -223,13 +228,15 @@ export function ProductDrawer({
             </p>
           )}
 
-          <button
-            onClick={remove}
-            disabled={deleting}
-            className="flex items-center justify-center gap-2 rounded-xl border border-line py-2.5 text-[13px] font-semibold text-danger transition hover:bg-danger/5 disabled:opacity-60"
-          >
-            <IconTrash width={16} height={16} /> Elimina articolo
-          </button>
+          {canDelete && (
+            <button
+              onClick={remove}
+              disabled={deleting}
+              className="flex items-center justify-center gap-2 rounded-xl border border-line py-2.5 text-[13px] font-semibold text-danger transition hover:bg-danger/5 disabled:opacity-60"
+            >
+              <IconTrash width={16} height={16} /> Elimina articolo
+            </button>
+          )}
         </div>
 
         {/* Footer salva */}

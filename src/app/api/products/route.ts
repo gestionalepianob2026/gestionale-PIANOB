@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { caricaFornitori, risolviFornitore } from "@/lib/fornitori";
 
 function num(v: unknown, def = 0): number {
   const n = typeof v === "string" ? Number(v.replace(",", ".")) : Number(v);
   return Number.isFinite(n) ? n : def;
 }
-function str(v: unknown): string {
-  return typeof v === "string" ? v.trim() : "";
+function str(v: unknown, max = 160): string {
+  return typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "";
 }
 function strOrNull(v: unknown): string | null {
   const s = str(v);
@@ -35,11 +36,11 @@ export async function POST(request: Request) {
       categoria,
       tipologia: strOrNull(body.tipologia),
       zona: strOrNull(body.zona),
-      fornitore: strOrNull(body.fornitore),
-      prezzoUnit: num(body.prezzoUnit),
-      ivaRate: num(body.ivaRate, 22),
-      quantita: num(body.quantita),
-      sogliaMin: num(body.sogliaMin, 3),
+      fornitore: risolviFornitore(await caricaFornitori(prisma), str(body.fornitore)),
+      prezzoUnit: Math.max(0, num(body.prezzoUnit)),
+      ivaRate: [0, 4, 5, 10, 22].includes(num(body.ivaRate, 22)) ? num(body.ivaRate, 22) : 22,
+      quantita: Math.max(0, num(body.quantita)),
+      sogliaMin: Math.max(0, num(body.sogliaMin, 3)),
     },
   });
 
