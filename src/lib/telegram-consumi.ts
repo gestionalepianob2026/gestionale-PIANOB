@@ -1,8 +1,8 @@
 // Bot Telegram: i ragazzi scrivono i consumi nel gruppo ("12 san pell") e il
 // magazzino si scarica da solo.
 //
+// Il bot è aperto a tutti i gruppi: non serve /attiva.
 // Regole di sicurezza (si scarica solo ciò che è CERTO):
-//  - il gruppo deve essere stato attivato con /attiva <codice>;
 //  - scarico automatico solo se il prodotto è un alias già imparato o un nome
 //    inequivocabile (l'AI si limita a suggerire il pulsante giusto);
 //  - tutto il resto resta "in attesa" e il gruppo sceglie il prodotto con un
@@ -10,14 +10,11 @@
 //  - ogni scarico si annulla con un pulsante (entro 24 ore);
 //  - lo stesso messaggio non scarica mai due volte (chiave unica chat+messaggio).
 
-import { createHash, timingSafeEqual } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { bloccaGiacenze } from "@/lib/giacenza";
 import { cercaProdotti, normalizzaTermine, parseMessaggio } from "@/lib/consumi";
 import { abbinaRighe } from "@/lib/abbina-consumi";
-import { bloccoRimanente, registraFallimento } from "@/lib/rate-limit";
-import { codiceAttivazioneTelegram } from "@/lib/impostazioni";
 import {
   cancellaMessaggio,
   escapeHtml,
@@ -47,11 +44,6 @@ const FINESTRA_ANNULLO_MS = 24 * 3600 * 1000;
 const nomeUtente = (u?: TgUser) =>
   [u?.first_name, u?.last_name].filter(Boolean).join(" ").slice(0, 40) || "un collega";
 
-function codiceUguale(a: string, b: string): boolean {
-  const ha = createHash("sha256").update(a).digest();
-  const hb = createHash("sha256").update(b).digest();
-  return timingSafeEqual(ha, hb);
-}
 
 const fmt = (n: number) =>
   Number.isInteger(n) ? String(n) : new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 }).format(n);
@@ -72,8 +64,13 @@ async function gestisciMessaggio(m: TgMessage): Promise<void> {
   const cmd = testo.match(/^\/(\w+)(?:@\w+)?(?:\s+([\s\S]*))?$/);
   if (cmd) return comando(m, chatId, cmd[1].toLowerCase(), (cmd[2] ?? "").trim());
 
-  const attiva = await prisma.telegramChat.findUnique({ where: { chatId } });
-  if (!attiva) return; // gruppo non autorizzato: silenzio totale
+  // Registra automaticamente il gruppo se non esiste ancora
+  const titolo = m.chat.title ?? m.chat.first_name ?? null;
+  await prisma.telegramChat.upsert({
+    where: { chatId },
+    create: { chatId, titolo },
+    update: { titolo },
+  });
 
   try {
     await elaboraConsumi(m, chatId, testo);
@@ -103,46 +100,13 @@ async function comando(m: TgMessage, chatId: string, cmd: string, arg: string): 
     return;
   }
 
-  if (cmd === "attiva") {
-    const codice = await codiceAttivazioneTelegram();
-    if (!codice) {
-      await rispondi("Attivazione non configurata: il titolare deve impostare la parola d'ordine in Impostazioni.");
-      return;
-    }
-    const chiave = `tg:${chatId}`;
-    if (bloccoRimanente(chiave, 5) > 0) {
-      await rispondi("Troppi tentativi sbagliati. Riprova tra qualche minuto.");
-      return;
-    }
-    if (!arg || !codiceUguale(arg, codice)) {
-      registraFallimento(chiave);
-      await rispondi("Codice non corretto.");
-      return;
-    }
-    const titolo = m.chat.title ?? m.chat.first_name ?? null;
-    await prisma.telegramChat.upsert({
-      where: { chatId },
-      create: { chatId, titolo },
-      update: { titolo },
-    });
-    // il codice è stato scritto in chiaro nel gruppo: se il bot è admin lo cancella
-    await cancellaMessaggio(chatId, m.message_id);
-    await inviaMessaggio(chatId, `✅ Gruppo attivato.\n\n${AIUTO}`);
+  if (cmd === "attiva" || cmd === "start" || cmd === "aiuto" || cmd === "help") {
+    await rispondi(AIUTO);
     return;
   }
-
-  const attiva = await prisma.telegramChat.findUnique({ where: { chatId } });
-  if (cmd === "start" || cmd === "aiuto" || cmd === "help") {
-    await rispondi(
-      attiva
-        ? AIUTO
-        : "Questo gruppo non è ancora attivo. Il titolare deve scrivere <code>/attiva CODICE</code>.",
-    );
-    return;
-  }
-  if (cmd === "disattiva" && attiva) {
-    await prisma.telegramChat.delete({ where: { chatId } });
-    await rispondi("Gruppo disattivato: non scarico più il magazzino da qui.");
+  if (cmd === "disattiva") {
+    await prisma.telegramChat.deleteMany({ where: { chatId } });
+    await rispondi("Gruppo rimosso dal registro.");
   }
 }
 
@@ -332,9 +296,6 @@ async function gestisciCallback(cq: TgCallback): Promise<void> {
   const m = cq.message;
   if (!m || !cq.data) return void (await rispondiCallback(cq.id));
   const chatId = String(m.chat.id);
-  const attiva = await prisma.telegramChat.findUnique({ where: { chatId } });
-  if (!attiva) return void (await rispondiCallback(cq.id, "Gruppo non attivo."));
-
   const [azione, a, b] = cq.data.split(":");
   let esito = "";
   let messaggioId: string | null = null;
