@@ -1,41 +1,38 @@
 # Configurazione deploy Render per il gestionale PIANO B.
 # Render legge questo file e crea il web service automaticamente.
+# Il database NON è qui: è esterno (Neon) e se ne passa l'indirizzo in DATABASE_URL.
 services:
   - type: web
     name: gestionale-piano-b
     runtime: node
     plan: free
     region: frankfurt # data center più vicino all'Italia = più veloce
-    # Genera il client Prisma, sincronizza lo schema sul DB, poi builda Next.
+    # Genera il client Prisma, crea/aggiorna le tabelle sul DB, poi builda Next.
     buildCommand: npm install && npx prisma db push && npm run build
     startCommand: npm run start
     healthCheckPath: /login
     envVars:
       - key: NODE_VERSION
         value: "20"
-      # I valori segreti si inseriscono a mano nella dashboard Render (sync:false).
-      - key: DATABASE_URL
-        sync: false
+      # --- Valori fissi (non vengono chiesti) ---
+      # AI: OpenAI per la demo. Per usare Anthropic basta aggiungere
+      # ANTHROPIC_API_KEY e mettere AI_PROVIDER=anthropic (dalla dashboard).
+      - key: AI_PROVIDER
+        value: openai
       # Segreto di sessione: generato da Render, forte e mai nel repository.
       - key: AUTH_SECRET
         generateValue: true
-      # AI: basta UNA delle due chiavi (se ci sono entrambe vince Anthropic;
-      # AI_PROVIDER=openai|anthropic forza la scelta).
-      - key: ANTHROPIC_API_KEY
+      # --- Valori segreti: Render li chiede al momento di creare il Blueprint ---
+      # Indirizzo diretto del database Neon (senza "-pooler" e senza channel_binding):
+      #   postgresql://utente:password@host.neon.tech/neondb?sslmode=require
+      - key: DATABASE_URL
         sync: false
       - key: OPENAI_API_KEY
         sync: false
-      - key: AI_PROVIDER
-        sync: false
-      # Opzionali: di default scansione=claude-sonnet-5-5, consumi=claude-haiku-5-5
-      - key: ANTHROPIC_MODEL_SCAN
-        sync: false
-      - key: ANTHROPIC_MODEL_CONSUMI
-        sync: false
-      # Bot Telegram (vedi README): token da @BotFather, segreto e codice a scelta.
+      # Bot Telegram (vedi README): token da @BotFather, segreto e parola d'ordine.
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_WEBHOOK_SECRET
-        generateValue: true
+        sync: false
       - key: TELEGRAM_SETUP_CODE
         sync: false
