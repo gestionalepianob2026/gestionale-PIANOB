@@ -168,13 +168,7 @@ export function AppShell({
 
       {/* Contenuto */}
       <main className="lg:pl-64">
-        <div
-          className={`mx-auto px-4 pb-28 pt-5 sm:px-6 lg:pb-12 lg:pt-8 ${
-            pathname.startsWith("/inventario")
-              ? "max-w-[1800px] lg:px-6"
-              : "max-w-6xl lg:px-10"
-          }`}
-        >
+        <div className="mx-auto max-w-6xl px-4 pb-28 pt-5 sm:px-6 lg:px-10 lg:pb-12 lg:pt-8">
           {children}
         </div>
       </main>
