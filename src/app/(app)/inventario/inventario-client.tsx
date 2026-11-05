@@ -18,9 +18,11 @@ import {
   IconClose,
   IconAlert,
   IconDownload,
+  IconExpand,
 } from "@/components/icons";
 import { CategoriaFiltro, matchCategoria } from "@/components/CategoriaFiltro";
 import { ProductDrawer } from "./product-drawer";
+import { TabellaSchermoIntero } from "./tabella-schermo-intero";
 
 const PAGE = 200; // quanti articoli mostrare per volta
 
@@ -39,6 +41,7 @@ export function InventarioClient({
   const [lowOnly, setLowOnly] = useState(params.get("low") === "1");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [visible, setVisible] = useState(PAGE);
+  const [fullscreen, setFullscreen] = useState(false);
 
   // Reset alla prima "pagina" quando cambiano ricerca o filtri
   // (pattern React: aggiorna lo stato durante il render, senza effect).
@@ -73,6 +76,23 @@ export function InventarioClient({
     [filtered],
   );
 
+  const filtro = (
+    <CategoriaFiltro
+      products={products}
+      cat={activeCat}
+      sub={activeSub}
+      onChange={(c, sc) => {
+        setActiveCat(c);
+        setActiveSub(sc);
+      }}
+      leading={
+        <Chip active={lowOnly} onClick={() => setLowOnly((v) => !v)} danger>
+          <IconAlert width={14} height={14} /> Sotto scorta
+        </Chip>
+      }
+    />
+  );
+
   const selected = products.find((p) => p.id === selectedId) ?? null;
 
   function onUpdated(updated: ProductDTO) {
@@ -88,7 +108,16 @@ export function InventarioClient({
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[30px] font-semibold tracking-tight">Inventario</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-[30px] font-semibold tracking-tight">Inventario</h1>
+            <button
+              onClick={() => setFullscreen(true)}
+              title="Apri la tabella a schermo intero"
+              className="flex items-center gap-2 rounded-xl border border-line bg-white px-3.5 py-2 text-[13px] font-semibold shadow-[0_1px_2px_rgba(16,24,40,.04)] transition hover:border-ink/20"
+            >
+              <IconExpand width={16} height={16} /> Schermo intero
+            </button>
+          </div>
           <p className="mt-1 text-[13px] text-muted2">
             {filtered.length} articoli · {fmtEur(totValue)} valore
           </p>
@@ -140,20 +169,7 @@ export function InventarioClient({
       </div>
 
       {/* Filtri: macro-categorie e sottocategorie */}
-      <CategoriaFiltro
-        products={products}
-        cat={activeCat}
-        sub={activeSub}
-        onChange={(c, sc) => {
-          setActiveCat(c);
-          setActiveSub(sc);
-        }}
-        leading={
-          <Chip active={lowOnly} onClick={() => setLowOnly((v) => !v)} danger>
-            <IconAlert width={14} height={14} /> Sotto scorta
-          </Chip>
-        }
-      />
+      {filtro}
 
       {/* Tabella desktop */}
       <div className="hidden overflow-hidden rounded-2xl border border-line bg-white shadow-[0_1px_2px_rgba(16,24,40,.04)] md:block">
@@ -262,6 +278,17 @@ export function InventarioClient({
             Visualizzati {visible} di {filtered.length}
           </p>
         </div>
+      )}
+
+      {fullscreen && (
+        <TabellaSchermoIntero
+          rows={filtered}
+          search={search}
+          onSearch={setSearch}
+          filtro={filtro}
+          onSelect={setSelectedId}
+          onClose={() => setFullscreen(false)}
+        />
       )}
 
       {selected && (

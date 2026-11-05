@@ -170,3 +170,12 @@ export const IconDownload = (p: P) => (
     <path d="M4 21h16" />
   </svg>
 );
+
+export const IconExpand = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M15 3h6v6" />
+    <path d="M9 21H3v-6" />
+    <path d="m21 3-7 7" />
+    <path d="m3 21 7-7" />
+  </svg>
+);
