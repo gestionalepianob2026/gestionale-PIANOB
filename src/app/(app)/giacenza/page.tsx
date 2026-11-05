@@ -23,12 +23,5 @@ export default async function GiacenzaPage() {
 
   const products = rows as ProductDTO[];
 
-  const catMap = new Map<string, number>();
-  for (const p of products)
-    catMap.set(p.categoria, (catMap.get(p.categoria) ?? 0) + 1);
-  const categories = [...catMap.entries()]
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count);
-
-  return <GiacenzaClient initialProducts={products} categories={categories} />;
+  return <GiacenzaClient initialProducts={products} />;
 }

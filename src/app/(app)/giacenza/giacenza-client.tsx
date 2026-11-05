@@ -12,8 +12,8 @@ import {
   IconDownload,
 } from "@/components/icons";
 import { MessaggioTab } from "./messaggio-tab";
+import { CategoriaFiltro, matchCategoria } from "@/components/CategoriaFiltro";
 
-type Cat = { name: string; count: number };
 type Tipo = "CARICO" | "SCARICO";
 type Draft = { tipo: Tipo; value: number };
 type Mode = "MANUALE" | "MESSAGGIO";
@@ -34,15 +34,14 @@ function nuovaGiacenza(attuale: number, d: Draft): number {
 
 export function GiacenzaClient({
   initialProducts,
-  categories,
 }: {
   initialProducts: ProductDTO[];
-  categories: Cat[];
 }) {
   const [products, setProducts] = useState(initialProducts);
   const [mode, setMode] = useState<Mode>("MESSAGGIO");
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState<string | null>(null);
+  const [activeSub, setActiveSub] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [qtyInput, setQtyInput] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -57,14 +56,14 @@ export function GiacenzaClient({
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return products.filter((p) => {
-      if (activeCat && p.categoria !== activeCat) return false;
+      if (!matchCategoria(p, activeCat, activeSub)) return false;
       if (q) {
         const hay = `${p.prodotto} ${p.fornitore ?? ""} ${p.categoria}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [products, search, activeCat]);
+  }, [products, search, activeCat, activeSub]);
 
   const draftEntries = Object.entries(drafts);
   const nDraft = draftEntries.length;
@@ -190,24 +189,16 @@ export function GiacenzaClient({
             )}
           </div>
 
-          {/* Filtri categoria */}
-          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-            <Chip active={!activeCat} onClick={() => setActiveCat(null)}>
-              Tutti
-            </Chip>
-            {categories.map((c) => (
-              <Chip
-                key={c.name}
-                active={activeCat === c.name}
-                onClick={() =>
-                  setActiveCat((prev) => (prev === c.name ? null : c.name))
-                }
-              >
-                {c.name}
-                <span className="text-muted2">{c.count}</span>
-              </Chip>
-            ))}
-          </div>
+          {/* Filtri: macro-categorie e sottocategorie */}
+          <CategoriaFiltro
+            products={products}
+            cat={activeCat}
+            sub={activeSub}
+            onChange={(c, sc) => {
+              setActiveCat(c);
+              setActiveSub(sc);
+            }}
+          />
         </>
       )}
 
@@ -417,29 +408,6 @@ function TabBtn({
       onClick={onClick}
       className={`rounded-lg py-2.5 text-[13px] font-semibold transition ${
         active ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Chip({
-  children,
-  active,
-  onClick,
-}: {
-  children: React.ReactNode;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-2 text-[12.5px] font-medium transition ${
-        active
-          ? "border-ink bg-ink text-white"
-          : "border-line bg-white text-slate hover:border-ink/20"
       }`}
     >
       {children}

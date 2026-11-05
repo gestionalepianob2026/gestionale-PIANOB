@@ -19,32 +19,30 @@ import {
   IconAlert,
   IconDownload,
 } from "@/components/icons";
+import { CategoriaFiltro, matchCategoria } from "@/components/CategoriaFiltro";
 import { ProductDrawer } from "./product-drawer";
-
-type Cat = { name: string; count: number };
 
 const PAGE = 200; // quanti articoli mostrare per volta
 
 export function InventarioClient({
   initialProducts,
-  categories,
   isAdmin,
 }: {
   initialProducts: ProductDTO[];
-  categories: Cat[];
   isAdmin: boolean;
 }) {
   const params = useSearchParams();
   const [products, setProducts] = useState(initialProducts);
   const [search, setSearch] = useState(params.get("q") ?? "");
   const [activeCat, setActiveCat] = useState<string | null>(null);
+  const [activeSub, setActiveSub] = useState<string | null>(null);
   const [lowOnly, setLowOnly] = useState(params.get("low") === "1");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [visible, setVisible] = useState(PAGE);
 
   // Reset alla prima "pagina" quando cambiano ricerca o filtri
   // (pattern React: aggiorna lo stato durante il render, senza effect).
-  const filterKey = `${search}|${activeCat ?? ""}|${lowOnly}`;
+  const filterKey = `${search}|${activeCat ?? ""}|${activeSub ?? ""}|${lowOnly}`;
   const [prevKey, setPrevKey] = useState(filterKey);
   if (filterKey !== prevKey) {
     setPrevKey(filterKey);
@@ -54,7 +52,7 @@ export function InventarioClient({
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return products.filter((p) => {
-      if (activeCat && p.categoria !== activeCat) return false;
+      if (!matchCategoria(p, activeCat, activeSub)) return false;
       if (lowOnly && !isLow(p)) return false;
       if (q) {
         const hay = `${p.prodotto} ${p.fornitore ?? ""} ${p.zona ?? ""} ${
@@ -64,7 +62,7 @@ export function InventarioClient({
       }
       return true;
     });
-  }, [products, search, activeCat, lowOnly]);
+  }, [products, search, activeCat, activeSub, lowOnly]);
 
   const totValue = useMemo(
     () =>
@@ -141,31 +139,21 @@ export function InventarioClient({
         )}
       </div>
 
-      {/* Filtri categoria */}
-      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-        <Chip active={!activeCat && !lowOnly} onClick={() => { setActiveCat(null); setLowOnly(false); }}>
-          Tutti
-        </Chip>
-        <Chip
-          active={lowOnly}
-          onClick={() => { setLowOnly((v) => !v); }}
-          danger
-        >
-          <IconAlert width={14} height={14} /> Sotto scorta
-        </Chip>
-        {categories.map((c) => (
-          <Chip
-            key={c.name}
-            active={activeCat === c.name}
-            onClick={() =>
-              setActiveCat((prev) => (prev === c.name ? null : c.name))
-            }
-          >
-            {c.name}
-            <span className="text-muted2">{c.count}</span>
+      {/* Filtri: macro-categorie e sottocategorie */}
+      <CategoriaFiltro
+        products={products}
+        cat={activeCat}
+        sub={activeSub}
+        onChange={(c, sc) => {
+          setActiveCat(c);
+          setActiveSub(sc);
+        }}
+        leading={
+          <Chip active={lowOnly} onClick={() => setLowOnly((v) => !v)} danger>
+            <IconAlert width={14} height={14} /> Sotto scorta
           </Chip>
-        ))}
-      </div>
+        }
+      />
 
       {/* Tabella desktop */}
       <div className="hidden overflow-hidden rounded-2xl border border-line bg-white shadow-[0_1px_2px_rgba(16,24,40,.04)] md:block">
