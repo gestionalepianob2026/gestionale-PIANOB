@@ -178,9 +178,7 @@ export function InventarioClient({
                   onClick={() => setSelectedId(p.id)}
                   className="cursor-pointer border-b border-line2 last:border-0 hover:bg-tint"
                 >
-                  <td className="max-w-[280px] px-4 py-2.5 font-medium">
-                    <span className="line-clamp-1">{p.prodotto}</span>
-                  </td>
+                  <td className="min-w-[320px] px-4 py-2.5 font-medium">{p.prodotto}</td>
                   <td className="px-3 py-2.5 text-muted">{p.categoria}</td>
                   <td className="px-3 py-2.5 text-muted2">
                     {[p.tipologia, p.zona].filter(Boolean).join(" · ") || "—"}
