@@ -34,6 +34,7 @@ export function CategoriaFiltro({
   sub,
   onChange,
   leading,
+  large,
 }: {
   products: Prod[];
   cat: string | null;
@@ -41,6 +42,7 @@ export function CategoriaFiltro({
   onChange: (cat: string | null, sub: string | null) => void;
   /** chip extra prima delle categorie (es. "Sotto scorta") */
   leading?: React.ReactNode;
+  large?: boolean;
 }) {
   const { macro, subs } = useMemo(() => {
     const m = new Map<string, number>(ORDINE_CATEGORIE.map((c) => [c, 0]));
@@ -67,11 +69,12 @@ export function CategoriaFiltro({
     <div className="flex flex-col gap-2">
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
         {leading}
-        <Pill active={!cat} onClick={() => onChange(null, null)}>
+        <Pill large={large} active={!cat} onClick={() => onChange(null, null)}>
           Tutti
         </Pill>
         {macro.map((c) => (
           <Pill
+            large={large}
             key={c.name}
             active={cat === c.name}
             onClick={() => onChange(cat === c.name ? null : c.name, null)}
@@ -84,12 +87,13 @@ export function CategoriaFiltro({
 
       {cat && subs.length > 0 && (
         <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-          <Pill small active={!sub} onClick={() => onChange(cat, null)}>
+          <Pill small large={large} active={!sub} onClick={() => onChange(cat, null)}>
             Tutti i {cat.toLowerCase()}
           </Pill>
           {subs.map((s) => (
             <Pill
               small
+              large={large}
               key={s.name}
               active={sub === s.name}
               onClick={() => onChange(cat, sub === s.name ? null : s.name)}
@@ -109,17 +113,25 @@ function Pill({
   active,
   onClick,
   small,
+  large,
 }: {
   children: React.ReactNode;
   active: boolean;
   onClick: () => void;
   small?: boolean;
+  large?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
       className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border font-medium transition ${
-        small ? "px-3 py-1.5 text-[12px]" : "px-3.5 py-2 text-[12.5px]"
+        small
+          ? large
+            ? "px-4 py-2 text-[14px]"
+            : "px-3 py-1.5 text-[12px]"
+          : large
+            ? "px-5 py-2.5 text-[15px]"
+            : "px-3.5 py-2 text-[12.5px]"
       } ${
         active
           ? small

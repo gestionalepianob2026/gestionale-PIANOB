@@ -88,8 +88,8 @@ export function InventarioClient({
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[30px] font-semibold tracking-tight">Inventario</h1>
-          <p className="mt-1 text-[13px] text-muted2">
+          <h1 className="text-[40px] font-bold leading-tight tracking-tight">Inventario</h1>
+          <p className="mt-1 text-[16px] text-muted">
             {filtered.length} articoli · {fmtEur(totValue)} valore
           </p>
         </div>
@@ -127,7 +127,7 @@ export function InventarioClient({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Cerca prodotto, fornitore, zona…"
-          className="w-full rounded-xl border border-line bg-tint py-3 pl-11 pr-10 text-sm outline-none transition focus:border-ink/30 focus:bg-white"
+          className="w-full rounded-xl border border-line bg-tint py-4 pl-12 pr-10 text-[16px] outline-none transition focus:border-ink/30 focus:bg-white"
         />
         {search && (
           <button
@@ -141,6 +141,7 @@ export function InventarioClient({
 
       {/* Filtri: macro-categorie e sottocategorie */}
       <CategoriaFiltro
+        large
         products={products}
         cat={activeCat}
         sub={activeSub}
@@ -157,9 +158,9 @@ export function InventarioClient({
 
       {/* Tabella desktop */}
       <div className="hidden overflow-hidden rounded-2xl border border-line bg-white shadow-[0_1px_2px_rgba(16,24,40,.04)] md:block">
-        <table className="w-full text-left text-[13px]">
+        <table className="w-full text-left text-[15px]">
           <thead>
-            <tr className="border-b border-line text-[10.5px] font-semibold tracking-wide text-muted2">
+            <tr className="border-b border-line bg-tint text-[12px] font-semibold tracking-wide text-muted">
               <th className="px-4 py-3">PRODOTTO</th>
               <th className="px-3 py-3">CATEGORIA</th>
               <th className="px-3 py-3">TIPO · ZONA</th>
@@ -178,27 +179,27 @@ export function InventarioClient({
                   onClick={() => setSelectedId(p.id)}
                   className="cursor-pointer border-b border-line2 last:border-0 hover:bg-tint"
                 >
-                  <td className="max-w-[280px] px-4 py-2.5 font-medium">
-                    <span className="line-clamp-1">{p.prodotto}</span>
+                  <td className="min-w-[300px] px-4 py-3.5 text-[16px] font-semibold leading-snug">
+                    {p.prodotto}
                   </td>
-                  <td className="px-3 py-2.5 text-muted">{p.categoria}</td>
-                  <td className="px-3 py-2.5 text-muted2">
+                  <td className="px-3 py-3.5 text-muted">{p.categoria}</td>
+                  <td className="px-3 py-3.5 text-muted">
                     {[p.tipologia, p.zona].filter(Boolean).join(" · ") || "—"}
                   </td>
-                  <td className="px-3 py-2.5 text-muted">{p.fornitore ?? "—"}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">
+                  <td className="min-w-[160px] px-3 py-3.5 text-muted">{p.fornitore ?? "—"}</td>
+                  <td className="px-3 py-3.5 text-right text-[16px] tabular-nums">
                     {fmtEur(prezzoLordo(p.prezzoUnit, p.ivaRate))}
                   </td>
-                  <td className="px-3 py-2.5 text-right">
+                  <td className="px-3 py-3.5 text-right">
                     <span
-                      className={`inline-block rounded-full px-2 py-0.5 text-[12px] font-semibold tabular-nums ${
+                      className={`inline-block rounded-full px-2.5 py-1 text-[15px] font-semibold tabular-nums ${
                         low ? "bg-danger/10 text-danger" : "text-ink"
                       }`}
                     >
                       {fmtNum(p.quantita)}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
+                  <td className="px-4 py-3.5 text-right text-[16px] font-semibold tabular-nums">
                     {fmtEur(valoreRiga(p.prezzoUnit, p.ivaRate, p.quantita))}
                   </td>
                 </tr>
@@ -220,12 +221,12 @@ export function InventarioClient({
               className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-white p-3.5 text-left shadow-[0_1px_2px_rgba(16,24,40,.04)]"
             >
               <div className="min-w-0">
-                <p className="line-clamp-1 text-[14px] font-medium">{p.prodotto}</p>
-                <p className="mt-0.5 text-[12px] text-muted2">
+                <p className="text-[16px] font-semibold leading-snug">{p.prodotto}</p>
+                <p className="mt-0.5 text-[13.5px] text-muted">
                   {p.categoria}
                   {p.fornitore ? ` · ${p.fornitore}` : ""}
                 </p>
-                <p className="mt-1 text-[12px] text-muted">
+                <p className="mt-1 text-[13.5px] text-muted">
                   {fmtEur(prezzoLordo(p.prezzoUnit, p.ivaRate))} / pz
                 </p>
               </div>
@@ -237,7 +238,7 @@ export function InventarioClient({
                 >
                   {fmtNum(p.quantita)} pz
                 </span>
-                <p className="mt-1.5 text-[13px] font-semibold tabular-nums">
+                <p className="mt-1.5 text-[15px] font-semibold tabular-nums">
                   {fmtEur(valoreRiga(p.prezzoUnit, p.ivaRate, p.quantita))}
                 </p>
               </div>
